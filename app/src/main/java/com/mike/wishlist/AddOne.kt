@@ -9,7 +9,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -25,18 +28,21 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.colorResource
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.launch
+import androidx.compose.material3.rememberBottomSheetScaffoldState
 
 @Composable
-fun AddOne(item: WishList? = null, viewModelWish: MVVM_WishList, navHostController: NavHostController, changeBackArrow: () -> Unit, modifier: Modifier = Modifier) {
-    //var item = viewModelWish.findById(id)
+fun AddOne(item: WishList? = null, viewModelWish: MVVM_WishList, navHostController: NavHostController, changeBackArrow: () -> Unit, changeSnackMessage: (String) -> Unit, modifier: Modifier = Modifier) {
+
     var title by remember { mutableStateOf(item?.title ?: "") }
     var summary by remember { mutableStateOf(item?.summary ?: "") }
-
     var lastElement = viewModelWish.wishList.collectAsState().value.lastOrNull()
+
 
     Column(
         modifier = modifier
@@ -73,21 +79,22 @@ fun AddOne(item: WishList? = null, viewModelWish: MVVM_WishList, navHostControll
                     viewModelWish.updateWish(
                         WishList(
                             id = item.id,
-                            title = title,
-                            summary = summary
+                            title = title.trim(),
+                            summary = summary.trim()
                         )
                     )
                 } else {
                     viewModelWish.addWish(
                         WishList(
                             id = lastElement?.id?.plus(1) ?: viewModelWish.wishList.value.size,
-                            title = title,
-                            summary = summary
+                            title = title.trim(),
+                            summary = summary.trim()
                         )
                     )
                 }
                 navHostController.popBackStack()
                 changeBackArrow.invoke()
+                changeSnackMessage.invoke("Wish ${if (item != null) "updated" else "added"} successfully")
             },
             modifier = modifier
                 .padding(16.dp),

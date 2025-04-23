@@ -25,12 +25,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -40,10 +45,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.room.Room
+import com.mike.wishlist.localDB.MyWishDatabase
 import com.mike.wishlist.ui.theme.WishListTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
-    private val viewModelWish by viewModels<MVVM_WishList>()
+    private val viewModelWish by viewModels<MVVM_WishList> {
+        MVVM_WishList.factory
+    }
+
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -52,6 +64,19 @@ class MainActivity : ComponentActivity() {
                 var navHostController = rememberNavController()
                 var title by remember { mutableStateOf("Wish List") }
                 var showIcon by remember { mutableStateOf(false) }
+
+                val scope = rememberCoroutineScope() // for snackbar message - couroutine scope
+                val scaffoldState = rememberBottomSheetScaffoldState()
+                val snackMessage = remember { mutableStateOf("") }
+                fun changeSnackMessage(message: String) {
+                    snackMessage.value = message
+                    scope.launch {
+                        scaffoldState.snackbarHostState.showSnackbar(
+                            message = message,
+                            duration = SnackbarDuration.Short
+                        )
+                    }
+                }
 
                 var wishListTitle = stringResource(R.string.home)
                 var addWishTitle = stringResource(R.string.add)
@@ -88,8 +113,37 @@ class MainActivity : ComponentActivity() {
                         },
                         navHostController, title,
                         viewModelWish = viewModelWish,
+                        changeSnackMessage = { message: String ->
+                            changeSnackMessage(message)
+                        }
                         ) },
                     floatingActionButtonPosition = FabPosition.EndOverlay,
+                    snackbarHost = {
+                        SnackbarHost(
+                            hostState = scaffoldState.snackbarHostState,
+                            modifier = Modifier.padding(16.dp),
+                            snackbar = { data ->
+                                Snackbar(
+                                    action = {
+                                        Text(
+                                            text = "OK",
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.padding(8.dp)
+                                        )
+                                    },
+                                    containerColor = colorResource(R.color.rose_500),
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                    content = {
+                                        Text(
+                                            text = data.visuals.message,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                )
+                            }
+                        )
+                    }
+
 
                 ) { innerPadding ->
                     App(
@@ -99,6 +153,9 @@ class MainActivity : ComponentActivity() {
                             changeBackArrow(screen)
                         },
                         viewModelWish = viewModelWish,
+                        changeSnackMessage = { message: String ->
+                            changeSnackMessage(message)
+                        },
                         modifier = Modifier
                     )
 
@@ -117,7 +174,9 @@ fun TopBar(title: String = "Wish List", showIcon: Boolean = false, navHostContro
 
 
                 Text(text = title,
-                    modifier = Modifier.padding(start = 4.dp).heightIn(max = 24.dp),)
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .heightIn(max = 24.dp),)
 
                 },
         colors = TopAppBarDefaults.smallTopAppBarColors(
@@ -130,6 +189,7 @@ fun TopBar(title: String = "Wish List", showIcon: Boolean = false, navHostContro
                 IconButton(onClick = {
                     navHostController.navigateUp() // go back i the naviagtion hierarchy
                     changeBackArrow.invoke()
+
                 }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Default.ArrowBack,
@@ -145,7 +205,7 @@ fun TopBar(title: String = "Wish List", showIcon: Boolean = false, navHostContro
 }
 
 @Composable
-fun FloatingButton(changeBackArrow: (String) -> Unit, navHostController: NavHostController, title: String, viewModelWish: MVVM_WishList? = null, modifier: Modifier = Modifier) {
+fun FloatingButton(changeBackArrow: (String) -> Unit, navHostController: NavHostController, title: String, viewModelWish: MVVM_WishList? = null, changeSnackMessage: (String) -> Unit, modifier: Modifier = Modifier) {
 
     if (title.contains("Add")) {
         return
@@ -160,7 +220,7 @@ fun FloatingButton(changeBackArrow: (String) -> Unit, navHostController: NavHost
                 viewModelWish?.removeWish(navHostController.previousBackStackEntry?.savedStateHandle?.get<WishList>("item")!!)
                 navHostController.popBackStack()
                 changeBackArrow.invoke(wishListTitle)
-
+                changeSnackMessage.invoke("Wish deleted successfully")
             }
             else if (title.contains("Wish")) {
 

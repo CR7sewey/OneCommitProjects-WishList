@@ -2,6 +2,7 @@ package com.mike.wishlist
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
@@ -20,7 +21,7 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun App(navHostController: NavHostController, changeBackArrow: (String) -> Unit, viewModelWish: MVVM_WishList, modifier: Modifier = Modifier) {
+fun App(navHostController: NavHostController, changeBackArrow: (String) -> Unit, viewModelWish: MVVM_WishList, changeSnackMessage: (String) -> Unit, modifier: Modifier = Modifier) {
 
     var navGraph = navHostController.createGraph(
         startDestination = "home"
@@ -42,12 +43,15 @@ fun App(navHostController: NavHostController, changeBackArrow: (String) -> Unit,
                 changeBackArrow = {
                     changeBackArrow.invoke("Wish List")
                 },
+                changeSnackMessage = changeSnackMessage
+                ,
                 modifier = modifier
             )
         }
         composable(Screen.Update.route, arguments = listOf(navArgument("id") { type =
             NavType.StringType })) { backStackEntry ->
-            val id = backStackEntry.arguments?.getString("id") // not needed
+            val id = requireNotNull(backStackEntry.arguments?.getString("id")).toInt() // not needed
+            //var item = viewModelWish.findById(id)?.collectAsState(initial = WishList(0, "", ""))?.value
             val item = navHostController.previousBackStackEntry?.savedStateHandle?.get<WishList>("item")
             AddOne(
                 item = item,
@@ -56,6 +60,8 @@ fun App(navHostController: NavHostController, changeBackArrow: (String) -> Unit,
                 changeBackArrow = {
                     changeBackArrow.invoke("Wish List")
                 },
+                changeSnackMessage = changeSnackMessage
+                ,
                 modifier = modifier
             )
             // DetailsView(id)
